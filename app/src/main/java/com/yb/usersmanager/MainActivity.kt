@@ -69,6 +69,7 @@ private fun UsersScreen() {
     var users by remember { mutableStateOf<List<DeviceUser>>(emptyList()) }
     var status by remember { mutableStateOf("בודק הרשאת Root…") }
     var maxUsers by remember { mutableIntStateOf(4) }
+    var restrictionBlocked by remember { mutableStateOf(false) }
     var showCreate by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("משתמש חדש") }
     var busy by remember { mutableStateOf(false) }
@@ -78,7 +79,13 @@ private fun UsersScreen() {
         busy = true
         val result = loadUsers()
         users = result.first
-        status = if (result.first.isNotEmpty()) "מחובר ל-Root • ${result.first.size} משתמשים" else result.second
+        val restrictionInfo = withContext(Dispatchers.IO) { root("dumpsys user") }
+        restrictionBlocked = Regex("""no_add_user\\s*[=:]\\s*true""", RegexOption.IGNORE_CASE).containsMatchIn(restrictionInfo)
+        status = when {
+            restrictionBlocked -> "זוהתה חסימה של יצירת משתמשים במערכת"
+            result.first.isNotEmpty() -> "מחובר ל-Root • ${result.first.size} משתמשים"
+            else -> result.second
+        }
         val max = withContext(Dispatchers.IO) { root("pm get-max-users").substringAfterLast(" ").trim().toIntOrNull() }
         if (max != null) maxUsers = max
         busy = false
@@ -140,6 +147,44 @@ private fun UsersScreen() {
                         }
                     }
                     if (users.isEmpty()) item { Text("לא נמצאו משתמשים או שאין הרשאת Root.", color = Color.LightGray) }
+                }
+                if (restrictionBlocked) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF493324)),
+                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Lock, null, tint = Color(0xFFFFC078))
+                                Spacer(Modifier.width(8.dp))
+                                Text("יצירת משתמשים חסומה", fontWeight = FontWeight.Bold, color = Color(0xFFFFD6A5))
+                            }
+                            Text(
+                                "המכשיר מפעיל את ההגבלה no_add_user. אפשר לנסות להסיר אותה דרך Root. אם ההגבלה נאכפת על ידי מנהל המכשיר או הקושחה, ייתכן שהניסיון לא יצליח.",
+                                fontSize = 12.sp,
+                                color = Color.White
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch {
+                                        busy = true
+                                        status = withContext(Dispatchers.IO) {
+                                            root("pm set-user-restriction --user 0 no_add_user false")
+                                        }
+                                        refresh()
+                                    }
+                                },
+                                enabled = !busy,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.LockOpen, null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(if (busy) "מנסה להסיר את החסימה…" else "נסה להסיר חסימה דרך Root")
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
                 }
                 Button(
                     onClick = { showCreate = true },
