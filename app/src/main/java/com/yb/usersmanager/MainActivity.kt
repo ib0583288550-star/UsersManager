@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 
 data class DeviceUser(val id: Int, val name: String, val current: Boolean)
 
@@ -65,6 +66,7 @@ private fun UsersScreen() {
     var showCreate by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("משתמש חדש") }
     var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     suspend fun refresh() {
         busy = true
@@ -84,7 +86,7 @@ private fun UsersScreen() {
         Scaffold(containerColor = navy, topBar = {
             TopAppBar(
                 title = { Column { Text("מנהל משתמשים", fontWeight = FontWeight.Bold); Text("ניהול משתמשי המכשיר", fontSize = 12.sp, color = Color.LightGray) } },
-                actions = { IconButton(onClick = { /* refreshed below */ }) { Icon(Icons.Default.People, null, tint = accent) } },
+                actions = { IconButton(onClick = { scope.launch { refresh() } }) { Icon(Icons.Default.Refresh, null, tint = accent) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = navy, titleContentColor = Color.White)
             )
         }) { padding ->
@@ -103,7 +105,7 @@ private fun UsersScreen() {
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("חשבונות במכשיר", fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { /* refresh handled by reload button */ }) { Text("רשימה") }
+                    TextButton(onClick = { scope.launch { refresh() } }) { Text("רענון") }
                 }
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     items(users, key = { it.id }) { user ->
@@ -121,7 +123,7 @@ private fun UsersScreen() {
                                     FilledTonalButton(onClick = {
                                         busy = true
                                         status = root("am switch-user ${user.id}")
-                                        busy = false
+                                        refresh()
                                     }) { Text("מעבר") }
                                 } else {
                                     Text("פעיל", color = accent, fontSize = 12.sp)
@@ -142,7 +144,7 @@ private fun UsersScreen() {
                     Text(if (users.size >= maxUsers) "הגעת למגבלת המשתמשים" else "יצירת משתמש חדש")
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = { busy = true }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(onClick = { scope.launch { refresh() } }, modifier = Modifier.fillMaxWidth()) {
                     Text(if (busy) "טוען…" else "רענון")
                 }
             }
@@ -157,7 +159,7 @@ private fun UsersScreen() {
                         showCreate = false
                         busy = true
                         status = root("pm create-user '${newName.replace("'", "")}'")
-                        busy = false
+                        scope.launch { refresh() }
                     }) { Text("צור משתמש") }
                 },
                 dismissButton = { TextButton(onClick = { showCreate = false }) { Text("ביטול") } }
