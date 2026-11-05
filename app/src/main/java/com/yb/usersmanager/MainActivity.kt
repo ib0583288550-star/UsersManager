@@ -80,7 +80,7 @@ private fun UsersScreen() {
         val result = loadUsers()
         users = result.first
         val restrictionInfo = withContext(Dispatchers.IO) { root("dumpsys user") }
-        restrictionBlocked = Regex("""no_add_user\\s*[=:]\\s*true""", RegexOption.IGNORE_CASE).containsMatchIn(restrictionInfo)
+        restrictionBlocked = Regex("""no_add_user\s*[=:]\s*true""", RegexOption.IGNORE_CASE).containsMatchIn(restrictionInfo)
         status = when {
             restrictionBlocked -> "זוהתה חסימה של יצירת משתמשים במערכת"
             result.first.isNotEmpty() -> "מחובר ל-Root • ${result.first.size} משתמשים"
