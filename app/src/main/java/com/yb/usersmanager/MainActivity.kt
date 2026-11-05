@@ -121,10 +121,12 @@ private fun UsersScreen() {
                                 }
                                 if (!user.current) {
                                     FilledTonalButton(onClick = {
-                                        busy = true
-                                        status = root("am switch-user ${user.id}")
-                                        refresh()
-                                    }) { Text("מעבר") }
+                                        scope.launch {
+                                            busy = true
+                                            status = withContext(Dispatchers.IO) { root("am switch-user ${user.id}") }
+                                            refresh()
+                                        }
+                                    }, enabled = !busy) { Text("מעבר") }
                                 } else {
                                     Text("פעיל", color = accent, fontSize = 12.sp)
                                 }
@@ -157,9 +159,13 @@ private fun UsersScreen() {
                 confirmButton = {
                     TextButton(onClick = {
                         showCreate = false
-                        busy = true
-                        status = root("pm create-user '${newName.replace("'", "")}'")
-                        scope.launch { refresh() }
+                        scope.launch {
+                            busy = true
+                            status = withContext(Dispatchers.IO) {
+                                root("pm create-user '${newName.replace("'", "")}'")
+                            }
+                            refresh()
+                        }
                     }) { Text("צור משתמש") }
                 },
                 dismissButton = { TextButton(onClick = { showCreate = false }) { Text("ביטול") } }
